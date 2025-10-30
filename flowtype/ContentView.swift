@@ -57,6 +57,20 @@ final class FontStore: ObservableObject {
 
 // MARK: - Root View
 
+enum DisplayMode: String, CaseIterable, Identifiable {
+  case grid
+  case column
+
+  var id: String { rawValue }
+
+  var label: String {
+    switch self {
+    case .grid: return "グリッド"
+    case .column: return "カラム"
+    }
+  }
+}
+
 struct ContentView: View {
   @EnvironmentObject var store: FontStore
 
@@ -65,6 +79,7 @@ struct ContentView: View {
   @State private var sampleText: String = "The quick brown fox jumps over the lazy dog 0123456789 あいうえお アイウエオ"
   @State private var size: Double = 24
   @State private var pinned: Set<FontInfo> = []
+  @State private var displayMode: DisplayMode = .grid
 
   var filteredFonts: [FontInfo] {
     store.fonts.filter { f in
@@ -82,11 +97,19 @@ struct ContentView: View {
     NavigationSplitView {
       sidebar
     } content: {
-      grid
+      mainContent
     } detail: {
       comparePanel
     }
     .navigationTitle("Font Browser")
+    .toolbar {
+      ToolbarItemGroup(placement: .navigation) {
+        viewModePicker
+      }
+      ToolbarItem(placement: .automatic) {
+        sizeSlider
+      }
+    }
   }
 
   // 左: フィルタや設定
@@ -96,11 +119,6 @@ struct ContentView: View {
         .textFieldStyle(.roundedBorder)
 
       Toggle("等幅のみ", isOn: $showMonospacedOnly)
-
-      VStack(alignment: .leading) {
-        Text("サイズ: \(Int(size))")
-        Slider(value: $size, in: 8...96, step: 1)
-      }
 
       Text("サンプルテキスト")
       TextEditor(text: $sampleText)
@@ -122,7 +140,17 @@ struct ContentView: View {
   }
 
   // 中央: 一覧（カードグリッド）
-  private var grid: some View {
+  @ViewBuilder
+  private var mainContent: some View {
+    switch displayMode {
+    case .grid:
+      gridView
+    case .column:
+      columnView
+    }
+  }
+
+  private var gridView: some View {
     ScrollView {
       let columns = [GridItem(.adaptive(minimum: 240), spacing: 16)]
       LazyVGrid(columns: columns, spacing: 16) {
@@ -137,6 +165,44 @@ struct ContentView: View {
       }
       .padding(16)
     }
+  }
+
+  private var columnView: some View {
+    ScrollView {
+      LazyVStack(spacing: 16) {
+        ForEach(filteredFonts, id: \.self) { f in
+          FontCard(
+            font: f,
+            sampleText: sampleText,
+            size: size,
+            pinned: $pinned
+          )
+          .frame(maxWidth: .infinity, alignment: .leading)
+        }
+      }
+      .padding(16)
+    }
+  }
+
+  private var viewModePicker: some View {
+    Picker("表示モード", selection: $displayMode) {
+      ForEach(DisplayMode.allCases) { mode in
+        Text(mode.label).tag(mode)
+      }
+    }
+    .pickerStyle(.segmented)
+    .frame(width: 200)
+  }
+
+  private var sizeSlider: some View {
+    HStack(spacing: 8) {
+      Text("サイズ")
+      Slider(value: $size, in: 8...96, step: 1)
+        .frame(width: 160)
+      Text("\(Int(size))")
+        .monospacedDigit()
+    }
+    .padding(.vertical, 2)
   }
 
   // 右: 比較パネル（ピン留めフォントを縦に並べる）
