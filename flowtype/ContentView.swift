@@ -69,6 +69,13 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     case .column: return "カラム"
     }
   }
+
+  var iconName: String {
+    switch self {
+    case .grid: return "square.grid.3x2"
+    case .column: return "rectangle.grid.1x2"
+    }
+  }
 }
 
 struct ContentView: View {
@@ -152,10 +159,10 @@ struct ContentView: View {
 
   private var gridView: some View {
     ScrollView {
-      let columns = [GridItem(.adaptive(minimum: 240), spacing: 16)]
+      let columns = [GridItem(.adaptive(minimum: 220), spacing: 12)]
       LazyVGrid(columns: columns, spacing: 16) {
         ForEach(filteredFonts, id: \.self) { f in
-          FontCard(
+          FontGridTile(
             font: f,
             sampleText: sampleText,
             size: size,
@@ -169,37 +176,45 @@ struct ContentView: View {
 
   private var columnView: some View {
     ScrollView {
-      LazyVStack(spacing: 16) {
-        ForEach(filteredFonts, id: \.self) { f in
-          FontCard(
+      LazyVStack(spacing: 0, pinnedViews: []) {
+        ForEach(Array(filteredFonts.enumerated()), id: \.element) { index, f in
+          FontListRow(
             font: f,
             sampleText: sampleText,
             size: size,
-            pinned: $pinned
+            pinned: $pinned,
+            isEvenRow: index.isMultiple(of: 2)
           )
-          .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
-      .padding(16)
+      .padding(.vertical, 8)
     }
   }
 
   private var viewModePicker: some View {
-    Picker("表示モード", selection: $displayMode) {
+    Picker("", selection: $displayMode) {
       ForEach(DisplayMode.allCases) { mode in
-        Text(mode.label).tag(mode)
+        Image(systemName: mode.iconName)
+          .tag(mode)
+          .help(mode.label)
+          .accessibilityLabel(Text(mode.label))
       }
     }
     .pickerStyle(.segmented)
-    .frame(width: 200)
+    .frame(width: 140)
   }
 
   private var sizeSlider: some View {
-    HStack(spacing: 8) {
-      Text("サイズ")
+    HStack(spacing: 6) {
+      Text("8")
+        .foregroundStyle(.secondary)
       Slider(value: $size, in: 8...96, step: 1)
-        .frame(width: 160)
-      Text("\(Int(size))")
+        .frame(width: 200)
+      Text("96")
+        .foregroundStyle(.secondary)
+      Divider()
+        .frame(height: 12)
+      Text("\(Int(size)) pt")
         .monospacedDigit()
     }
     .padding(.vertical, 2)
@@ -275,9 +290,9 @@ struct ContentView: View {
   }
 }
 
-// MARK: - Card
+// MARK: - Item Views
 
-struct FontCard: View {
+struct FontGridTile: View {
   let font: FontInfo
   let sampleText: String
   let size: Double
@@ -286,35 +301,59 @@ struct FontCard: View {
   private var isPinned: Bool { pinned.contains(font) }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(font.displayName)
-            .font(.subheadline).bold()
-            .lineLimit(1)
-          Text("\(font.familyName) • \(font.postScriptName)")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-        }
-        Spacer()
+    VStack(alignment: .leading, spacing: 12) {
+      ZStack(alignment: .topTrailing) {
+        RoundedRectangle(cornerRadius: 14, style: .continuous)
+          .fill(Color.primary.opacity(0.03))
+          .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+              .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+          )
+
+        Text(sampleText)
+          .font(.custom(font.postScriptName, size: CGFloat(size)))
+          .lineLimit(3)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
+          .padding(.horizontal, 16)
+          .padding(.top, 24)
+          .padding(.bottom, 18)
+
         Button {
           if isPinned { pinned.remove(font) } else { pinned.insert(font) }
         } label: {
           Image(systemName: isPinned ? "pin.fill" : "pin")
+            .padding(8)
+            .background(.ultraThinMaterial, in: Circle())
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
+        .padding(10)
         .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
       }
 
-      Text(sampleText)
-        .font(.custom(font.postScriptName, size: CGFloat(size)))
-        .lineLimit(4)
-        .fixedSize(horizontal: false, vertical: true)
+      VStack(alignment: .leading, spacing: 4) {
+        Text(font.displayName)
+          .font(.headline)
+          .lineLimit(1)
 
-      HStack(spacing: 6) {
+        Text(font.familyName)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+
+        Text(font.postScriptName)
+          .font(.caption2)
+          .foregroundStyle(Color.secondary.opacity(0.6))
+          .lineLimit(1)
+      }
+
+      HStack(spacing: 8) {
         if font.isMonospaced {
-          Label("等幅", systemImage: "text.alignleft").font(.caption2)
+          Label("等幅", systemImage: "text.alignleft")
+            .font(.caption2)
+            .labelStyle(.iconOnly)
+            .foregroundStyle(.secondary)
+            .help("等幅フォント")
         }
         Spacer()
         Button {
@@ -328,15 +367,75 @@ struct FontCard: View {
         .help("PostScript名をコピー")
       }
     }
-    .padding(12)
-    .background(
-      RoundedRectangle(cornerRadius: 12)
-        .fill(Color.primary.opacity(0.03))
-    )
-    .overlay(
-      RoundedRectangle(cornerRadius: 12)
-        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-    )
+    .padding(16)
+  }
+}
+
+struct FontListRow: View {
+  let font: FontInfo
+  let sampleText: String
+  let size: Double
+  @Binding var pinned: Set<FontInfo>
+  let isEvenRow: Bool
+
+  private var isPinned: Bool { pinned.contains(font) }
+
+  var body: some View {
+    HStack(spacing: 24) {
+      HStack(alignment: .center, spacing: 12) {
+        Circle()
+          .fill(Color.accentColor.opacity(font.isMonospaced ? 1 : 0.5))
+          .frame(width: 6, height: 6)
+          .padding(.leading, 4)
+
+        VStack(alignment: .leading, spacing: 2) {
+          Text(font.displayName)
+            .font(.headline)
+            .lineLimit(1)
+          Text(font.familyName)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+        }
+      }
+
+      Spacer()
+
+      Text(sampleText)
+        .font(.custom(font.postScriptName, size: CGFloat(size)))
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
+        .frame(maxWidth: 360, alignment: .center)
+        .padding(.horizontal, 12)
+
+      Spacer(minLength: 12)
+
+      HStack(spacing: 12) {
+        Button {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(font.postScriptName, forType: .string)
+        } label: {
+          Image(systemName: "doc.on.doc")
+        }
+        .buttonStyle(.borderless)
+        .help("PostScript名をコピー")
+
+        Button {
+          if isPinned { pinned.remove(font) } else { pinned.insert(font) }
+        } label: {
+          Image(systemName: isPinned ? "pin.fill" : "pin")
+        }
+        .buttonStyle(.borderless)
+        .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
+      }
+    }
+    .padding(.horizontal, 20)
+    .padding(.vertical, 14)
+    .background(isEvenRow ? Color.primary.opacity(0.04) : Color.clear)
+    .overlay(alignment: .bottom) {
+      Divider()
+        .padding(.leading, 20)
+    }
   }
 }
 
