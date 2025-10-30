@@ -1,17 +1,14 @@
-//
-//  flowtypeApp.swift
-//  flowtype
-//
-//  Created by kz on 2025/10/30.
-//
-
 import SwiftUI
 
 @main
-struct flowtypeApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+struct FlowtypeApp: App {
+  @StateObject private var store = FontStore() // DI: アプリ全体で共有
+
+  var body: some Scene {
+    WindowGroup {
+      ContentView()
+        .environmentObject(store)
     }
+    .windowStyle(.titleBar)
+  }
 }
