@@ -159,8 +159,8 @@ struct ContentView: View {
 
   private var gridView: some View {
     ScrollView {
-      let columns = [GridItem(.adaptive(minimum: 240), spacing: 14)]
-      LazyVGrid(columns: columns, spacing: 18) {
+      let columns = [GridItem(.adaptive(minimum: 220), spacing: 12)]
+      LazyVGrid(columns: columns, spacing: 16) {
         ForEach(filteredFonts, id: \.self) { f in
           FontGridTile(
             font: f,
@@ -303,39 +303,39 @@ struct FontGridTile: View {
   private var titleText: String { "\(font.displayName) (\(font.postScriptName))" }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      Text(titleText)
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .lineLimit(1)
-
-      Text(sampleText)
-        .font(.custom(font.postScriptName, size: CGFloat(size)))
-        .lineLimit(3)
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: .leading)
-
-      Spacer(minLength: 0)
-
-      if font.isMonospaced {
-        Label("等幅", systemImage: "text.alignleft")
-          .font(.caption2)
-          .foregroundStyle(.secondary)
-          .help("等幅フォント")
-      }
-    }
-    .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
-    .padding(.horizontal, 16)
-    .padding(.vertical, 14)
-    .background(
+    ZStack(alignment: .topTrailing) {
       RoundedRectangle(cornerRadius: 14, style: .continuous)
         .fill(Color.primary.opacity(0.03))
         .overlay(
           RoundedRectangle(cornerRadius: 14, style: .continuous)
             .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
         )
-    )
-    .overlay(alignment: .topTrailing) {
+
+      VStack(alignment: .leading, spacing: 12) {
+        Text(titleText)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+
+        Text(sampleText)
+          .font(.custom(font.postScriptName, size: CGFloat(size)))
+          .lineLimit(3)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .leading)
+
+        Spacer(minLength: 0)
+
+        if font.isMonospaced {
+          Label("等幅", systemImage: "text.alignleft")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .help("等幅フォント")
+        }
+      }
+      .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+      .padding(.horizontal, 16)
+      .padding(.vertical, 14)
+
       Button {
         togglePin()
       } label: {
