@@ -69,6 +69,13 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     case .column: return "カラム"
     }
   }
+
+  var iconName: String {
+    switch self {
+    case .grid: return "square.grid.3x2"
+    case .column: return "rectangle.grid.1x2"
+    }
+  }
 }
 
 struct ContentView: View {
@@ -76,7 +83,7 @@ struct ContentView: View {
 
   @State private var query: String = ""
   @State private var showMonospacedOnly: Bool = false
-  @State private var sampleText: String = "The quick brown fox jumps over the lazy dog 0123456789 あいうえお アイウエオ"
+  @State private var sampleText: String = "The quick brown fox jumps over the lazy dog"
   @State private var size: Double = 24
   @State private var pinned: Set<FontInfo> = []
   @State private var displayMode: DisplayMode = .grid
@@ -152,10 +159,10 @@ struct ContentView: View {
 
   private var gridView: some View {
     ScrollView {
-      let columns = [GridItem(.adaptive(minimum: 240), spacing: 16)]
-      LazyVGrid(columns: columns, spacing: 16) {
+      let columns = [GridItem(.adaptive(minimum: 240), spacing: 14)]
+      LazyVGrid(columns: columns, spacing: 18) {
         ForEach(filteredFonts, id: \.self) { f in
-          FontCard(
+          FontGridTile(
             font: f,
             sampleText: sampleText,
             size: size,
@@ -163,43 +170,52 @@ struct ContentView: View {
           )
         }
       }
-      .padding(16)
+      .padding(.horizontal, 18)
+      .padding(.vertical, 16)
     }
   }
 
   private var columnView: some View {
     ScrollView {
-      LazyVStack(spacing: 16) {
-        ForEach(filteredFonts, id: \.self) { f in
-          FontCard(
+      LazyVStack(spacing: 0, pinnedViews: []) {
+        ForEach(Array(filteredFonts.enumerated()), id: \.element) { index, f in
+          FontListRow(
             font: f,
             sampleText: sampleText,
             size: size,
-            pinned: $pinned
+            pinned: $pinned,
+            isEvenRow: index.isMultiple(of: 2)
           )
-          .frame(maxWidth: .infinity, alignment: .leading)
         }
       }
-      .padding(16)
+      .padding(.vertical, 8)
     }
   }
 
   private var viewModePicker: some View {
-    Picker("表示モード", selection: $displayMode) {
+    Picker("", selection: $displayMode) {
       ForEach(DisplayMode.allCases) { mode in
-        Text(mode.label).tag(mode)
+        Image(systemName: mode.iconName)
+          .tag(mode)
+          .help(mode.label)
+          .accessibilityLabel(Text(mode.label))
       }
     }
     .pickerStyle(.segmented)
-    .frame(width: 200)
+    .frame(width: 140)
   }
 
   private var sizeSlider: some View {
-    HStack(spacing: 8) {
-      Text("サイズ")
+    HStack(spacing: 6) {
+      Text("8")
+        .foregroundStyle(.secondary)
       Slider(value: $size, in: 8...96, step: 1)
-        .frame(width: 160)
-      Text("\(Int(size))")
+        .frame(width: 200)
+      Text("96")
+        .foregroundStyle(.secondary)
+      Divider()
+        .frame(height: 12)
+      Text("\(Int(size)) pt")
         .monospacedDigit()
     }
     .padding(.vertical, 2)
@@ -275,29 +291,149 @@ struct ContentView: View {
   }
 }
 
-// MARK: - Card
+// MARK: - Item Views
 
-struct FontCard: View {
+struct FontGridTile: View {
   let font: FontInfo
   let sampleText: String
   let size: Double
   @Binding var pinned: Set<FontInfo>
 
   private var isPinned: Bool { pinned.contains(font) }
+  private var titleText: String { "\(font.displayName) (\(font.postScriptName))" }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(titleText)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+
+      Text(sampleText)
+        .font(.custom(font.postScriptName, size: CGFloat(size)))
+        .lineLimit(3)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+      Spacer(minLength: 0)
+
+      if font.isMonospaced {
+        Label("等幅", systemImage: "text.alignleft")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .help("等幅フォント")
+      }
+    }
+    .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+    .padding(.horizontal, 16)
+    .padding(.vertical, 14)
+    .background(
+      RoundedRectangle(cornerRadius: 14, style: .continuous)
+        .fill(Color.primary.opacity(0.03))
+        .overlay(
+          RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+    )
+    .overlay(alignment: .topTrailing) {
+      Button {
+        togglePin()
+      } label: {
+        Image(systemName: isPinned ? "pin.fill" : "pin")
+          .padding(8)
+          .background(.ultraThinMaterial, in: Circle())
+      }
+      .buttonStyle(.plain)
+      .padding(10)
+      .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
+    }
+    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .contextMenu {
+      Button {
+        copyToPasteboard(font.postScriptName)
+      } label: {
+        Label("PostScript名をコピー", systemImage: "doc.on.doc")
+      }
+
+      Button {
+        copyToPasteboard(font.displayName)
+      } label: {
+        Label("表示名をコピー", systemImage: "textformat")
+      }
+
+      Divider()
+
+      Button {
+        togglePin()
+      } label: {
+        Label(isPinned ? "ピン留めを外す" : "比較にピン留め", systemImage: isPinned ? "pin.slash" : "pin")
+      }
+    }
+  }
+
+  private func togglePin() {
+    if isPinned {
+      pinned.remove(font)
+    } else {
+      pinned.insert(font)
+    }
+  }
+
+  private func copyToPasteboard(_ value: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(value, forType: .string)
+  }
+}
+
+struct FontListRow: View {
+  let font: FontInfo
+  let sampleText: String
+  let size: Double
+  @Binding var pinned: Set<FontInfo>
+  let isEvenRow: Bool
+
+  private var isPinned: Bool { pinned.contains(font) }
+
+  var body: some View {
+    HStack(spacing: 24) {
+      HStack(alignment: .center, spacing: 12) {
+        Circle()
+          .fill(Color.accentColor.opacity(font.isMonospaced ? 1 : 0.5))
+          .frame(width: 6, height: 6)
+          .padding(.leading, 4)
+
         VStack(alignment: .leading, spacing: 2) {
           Text(font.displayName)
-            .font(.subheadline).bold()
+            .font(.headline)
             .lineLimit(1)
-          Text("\(font.familyName) • \(font.postScriptName)")
+          Text(font.familyName)
             .font(.caption)
             .foregroundStyle(.secondary)
             .lineLimit(1)
         }
-        Spacer()
+      }
+
+      Spacer()
+
+      Text(sampleText)
+        .font(.custom(font.postScriptName, size: CGFloat(size)))
+        .lineLimit(1)
+        .minimumScaleFactor(0.5)
+        .frame(maxWidth: 360, alignment: .center)
+        .padding(.horizontal, 12)
+
+      Spacer(minLength: 12)
+
+      HStack(spacing: 12) {
+        Button {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(font.postScriptName, forType: .string)
+        } label: {
+          Image(systemName: "doc.on.doc")
+        }
+        .buttonStyle(.borderless)
+        .help("PostScript名をコピー")
+
         Button {
           if isPinned { pinned.remove(font) } else { pinned.insert(font) }
         } label: {
@@ -306,37 +442,14 @@ struct FontCard: View {
         .buttonStyle(.borderless)
         .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
       }
-
-      Text(sampleText)
-        .font(.custom(font.postScriptName, size: CGFloat(size)))
-        .lineLimit(4)
-        .fixedSize(horizontal: false, vertical: true)
-
-      HStack(spacing: 6) {
-        if font.isMonospaced {
-          Label("等幅", systemImage: "text.alignleft").font(.caption2)
-        }
-        Spacer()
-        Button {
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(font.postScriptName, forType: .string)
-        } label: {
-          Label("PS名コピー", systemImage: "doc.on.doc")
-            .labelStyle(.iconOnly)
-        }
-        .buttonStyle(.borderless)
-        .help("PostScript名をコピー")
-      }
     }
-    .padding(12)
-    .background(
-      RoundedRectangle(cornerRadius: 12)
-        .fill(Color.primary.opacity(0.03))
-    )
-    .overlay(
-      RoundedRectangle(cornerRadius: 12)
-        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-    )
+    .padding(.horizontal, 20)
+    .padding(.vertical, 14)
+    .background(isEvenRow ? Color.primary.opacity(0.04) : Color.clear)
+    .overlay(alignment: .bottom) {
+      Divider()
+        .padding(.leading, 20)
+    }
   }
 }
 
