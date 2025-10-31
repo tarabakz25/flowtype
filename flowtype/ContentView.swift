@@ -100,8 +100,10 @@ struct ContentView: View {
     }
   }
 
+  @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
+
   var body: some View {
-    NavigationSplitView {
+    NavigationSplitView(columnVisibility: $columnVisibility) {
       sidebar
     } content: {
       mainContent
@@ -226,7 +228,7 @@ struct ContentView: View {
     VStack(alignment: .leading, spacing: 8) {
       HStack {
         Text("比較")
-          .font(.title3).bold()
+          .font(.caption).bold()
         Spacer()
         Button("コピー（テキストとフォント名）") {
           let text = pinned
@@ -235,6 +237,7 @@ struct ContentView: View {
           NSPasteboard.general.clearContents()
           NSPasteboard.general.setString(text, forType: .string)
         }
+        .font(.caption)
       }
 
       if pinned.isEmpty {
@@ -255,7 +258,7 @@ struct ContentView: View {
               VStack(alignment: .leading, spacing: 6) {
                 HStack {
                   Text(f.displayName)
-                    .font(.headline)
+                    .font(.caption)
                   Text("[\(f.postScriptName)]")
                     .foregroundStyle(.secondary)
                     .font(.caption)
@@ -323,16 +326,14 @@ struct FontGridTile: View {
           .fixedSize(horizontal: false, vertical: true)
           .frame(maxWidth: .infinity, alignment: .leading)
 
-        Spacer(minLength: 0)
-
         if font.isMonospaced {
           Label("等幅", systemImage: "text.alignleft")
-            .font(.caption2)
+            .font(.caption)
             .foregroundStyle(.secondary)
             .help("等幅フォント")
         }
       }
-      .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+      .frame(maxWidth: .infinity, alignment: .topLeading)
       .padding(.horizontal, 16)
       .padding(.vertical, 14)
 
@@ -404,7 +405,7 @@ struct FontListRow: View {
 
         VStack(alignment: .leading, spacing: 2) {
           Text(font.displayName)
-            .font(.headline)
+            .font(.caption)
             .lineLimit(1)
           Text(font.familyName)
             .font(.caption)
