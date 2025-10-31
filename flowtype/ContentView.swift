@@ -60,6 +60,7 @@ final class FontStore: ObservableObject {
 enum DisplayMode: String, CaseIterable, Identifiable {
   case grid
   case column
+  case comparison
 
   var id: String { rawValue }
 
@@ -67,6 +68,7 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     switch self {
     case .grid: return "グリッド"
     case .column: return "カラム"
+    case .comparison: return "比較"
     }
   }
 
@@ -74,6 +76,7 @@ enum DisplayMode: String, CaseIterable, Identifiable {
     switch self {
     case .grid: return "square.grid.3x2"
     case .column: return "rectangle.grid.1x2"
+    case .comparison: return "rectangle.stack.badge.plus"
     }
   }
 }
@@ -145,7 +148,18 @@ struct ContentView: View {
       gridView
     case .column:
       columnView
+    case .comparison:
+      comparisonView
     }
+  }
+  
+  private var comparisonView: some View {
+    FontComparisonView(
+      pinnedFonts: Array(pinned).sorted { $0.displayName < $1.displayName },
+      sampleText: sampleText,
+      size: size,
+      pinned: $pinned
+    )
   }
 
   private var gridView: some View {
@@ -385,6 +399,60 @@ struct FontListRow: View {
       }
     }
     .frame(height: 60)
+  }
+}
+
+// MARK: - Comparison View
+
+struct FontComparisonView: View {
+  let pinnedFonts: [FontInfo]
+  let sampleText: String
+  let size: Double
+  @Binding var pinned: Set<FontInfo>
+  
+  var body: some View {
+    Group {
+      if pinnedFonts.isEmpty {
+        emptyStateView
+      } else {
+        comparisonContentView
+      }
+    }
+  }
+  
+  private var emptyStateView: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "pin.slash")
+        .font(.system(size: 48))
+        .foregroundStyle(.secondary)
+      
+      Text("ピン留めされたフォントがありません")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+      
+      Text("グリッドまたはカラムビューでフォントをピン留めすると、\nここで比較できます")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+  
+  private var comparisonContentView: some View {
+    ScrollView {
+      LazyVStack(spacing: 0, pinnedViews: []) {
+        ForEach(Array(pinnedFonts.enumerated()), id: \.element) { index, font in
+          FontListRow(
+            font: font,
+            sampleText: sampleText,
+            size: size,
+            pinned: $pinned,
+            isEvenRow: index.isMultiple(of: 2)
+          )
+        }
+      }
+      .padding(.vertical, 8)
+    }
   }
 }
 
