@@ -109,9 +109,18 @@ struct ContentView: View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
       sidebar
     } detail: {
-      mainContent
+      Group {
+        switch displayMode {
+        case .grid:
+          gridView
+        case .column:
+          columnView
+        case .comparison:
+          comparisonTab
+        }
+      }
+      .navigationTitle(displayMode == .comparison ? "フォント比較" : "Font Browser")
     }
-    .navigationTitle("Font Browser")
     .toolbar {
       ToolbarItemGroup(placement: .navigation) {
         viewModePicker
@@ -398,7 +407,157 @@ struct FontListRow: View {
           .padding(.leading, 20)
       }
     }
-    .frame(height: 60)
+    .frame(height: max(60, CGFloat(size) + 40))
+  }
+}
+
+// MARK: - Comparison View
+
+struct FontComparisonView: View {
+  let pinnedFonts: [FontInfo]
+  let sampleText: String
+  let size: Double
+  @Binding var pinned: Set<FontInfo>
+  
+  var body: some View {
+    Group {
+      if pinnedFonts.isEmpty {
+        emptyStateView
+      } else {
+        comparisonContentView
+      }
+    }
+  }
+  
+  private var emptyStateView: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "pin.slash")
+        .font(.system(size: 48))
+        .foregroundStyle(.secondary)
+      
+      Text("ピン留めされたフォントがありません")
+        .font(.headline)
+        .foregroundStyle(.secondary)
+      
+      Text("グリッドまたはカラムビューでフォントをピン留めすると、\nここで比較できます")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+  
+  private var comparisonContentView: some View {
+    ScrollView {
+      LazyVStack(spacing: 0, pinnedViews: []) {
+        ForEach(Array(pinnedFonts.enumerated()), id: \.element) { index, font in
+          FontComparisonRow(
+            font: font,
+            sampleText: sampleText,
+            size: size,
+            pinned: $pinned,
+            isEvenRow: index.isMultiple(of: 2)
+          )
+        }
+      }
+      .padding(.vertical, 8)
+    }
+  }
+}
+
+struct FontComparisonRow: View {
+  let font: FontInfo
+  let sampleText: String
+  let size: Double
+  @Binding var pinned: Set<FontInfo>
+  let isEvenRow: Bool
+  
+  private var isPinned: Bool { pinned.contains(font) }
+  
+  // テキストサイズに応じて最大幅を計算
+  private var dynamicMaxWidth: CGFloat {
+    let baseWidth: CGFloat = 400
+    let sizeFactor = CGFloat(size) / 24.0
+    return min(baseWidth * sizeFactor, 900)
+  }
+  
+  var body: some View {
+    GeometryReader { geometry in
+      HStack(spacing: 24) {
+        // フォント情報セクション
+        HStack(alignment: .center, spacing: 12) {
+          Circle()
+            .fill(Color.accentColor.opacity(font.isMonospaced ? 1 : 0.5))
+            .frame(width: 8, height: 8)
+            .padding(.leading, 4)
+          
+          VStack(alignment: .leading, spacing: 4) {
+            Text(font.displayName)
+              .font(.subheadline)
+              .fontWeight(.medium)
+              .lineLimit(1)
+            
+            Text(font.familyName)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+            
+            Text(font.postScriptName)
+              .font(.caption2)
+              .foregroundStyle(.tertiary)
+              .lineLimit(1)
+          }
+        }
+        .frame(width: 250, alignment: .leading)
+        
+        Spacer()
+        
+        // サンプルテキスト表示
+        Text(sampleText)
+          .font(.custom(font.postScriptName, size: CGFloat(size)))
+          .lineLimit(2)
+          .minimumScaleFactor(0.5)
+          .frame(maxWidth: min(dynamicMaxWidth, geometry.size.width - 450), alignment: .leading)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 8)
+          .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+              .fill(Color.primary.opacity(0.02))
+          )
+        
+        Spacer(minLength: 12)
+        
+        // アクションボタン
+        HStack(spacing: 12) {
+          Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(font.postScriptName, forType: .string)
+          } label: {
+            Image(systemName: "doc.on.doc")
+          }
+          .buttonStyle(.borderless)
+          .help("PostScript名をコピー")
+          
+          Button {
+            if isPinned { pinned.remove(font) } else { pinned.insert(font) }
+          } label: {
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+              .foregroundStyle(isPinned ? .red : .secondary)
+          }
+          .buttonStyle(.borderless)
+          .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
+        }
+        .frame(width: 100, alignment: .trailing)
+      }
+      .padding(.horizontal, 24)
+      .padding(.vertical, 20)
+      .background(isEvenRow ? Color.primary.opacity(0.04) : Color.clear)
+      .overlay(alignment: .bottom) {
+        Divider()
+          .padding(.leading, 24)
+      }
+    }
+    .frame(height: max(80, CGFloat(size) + 60))
   }
 }
 
