@@ -105,7 +105,7 @@ struct ContentView: View {
   var body: some View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
       sidebar
-    } content: {
+    } detail: {
       mainContent
     }
     .navigationTitle("Font Browser")
