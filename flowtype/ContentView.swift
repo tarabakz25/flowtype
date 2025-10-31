@@ -107,8 +107,6 @@ struct ContentView: View {
       sidebar
     } content: {
       mainContent
-    } detail: {
-      comparePanel
     }
     .navigationTitle("Font Browser")
     .toolbar {
@@ -133,15 +131,6 @@ struct ContentView: View {
       TextEditor(text: $sampleText)
         .frame(minHeight: 100)
         .border(Color.secondary.opacity(0.2))
-
-      Divider()
-      VStack(alignment: .leading, spacing: 6) {
-        Text("ピン留め \(pinned.count) 件")
-          .font(.caption)
-          .foregroundStyle(.secondary)
-        Button("すべて外す") { pinned.removeAll() }
-          .buttonStyle(.bordered)
-      }
 
       Spacer()
     }
@@ -223,75 +212,6 @@ struct ContentView: View {
     .padding(.vertical, 2)
   }
 
-  // 右: 比較パネル（ピン留めフォントを縦に並べる）
-  private var comparePanel: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack {
-        Text("比較")
-          .font(.caption).bold()
-        Spacer()
-        Button("コピー（テキストとフォント名）") {
-          let text = pinned
-            .map { "• \($0.displayName) [\($0.postScriptName)]\n  \(sampleText)" }
-            .joined(separator: "\n\n")
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(text, forType: .string)
-        }
-        .font(.caption)
-      }
-
-      if pinned.isEmpty {
-        if #available(macOS 14.0, *) {
-          ContentUnavailableView("ピン留めなし", systemImage: "pin.slash", description: Text("一覧で📌を押すとここに並びます"))
-        } else {
-          VStack(spacing: 8) {
-            Image(systemName: "pin.slash")
-            Text("一覧で📌を押すとここに並びます")
-              .foregroundStyle(.secondary)
-          }
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-      } else {
-        ScrollView {
-          VStack(alignment: .leading, spacing: 16) {
-            ForEach(Array(pinned), id: \.self) { f in
-              VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                  Text(f.displayName)
-                    .font(.caption)
-                  Text("[\(f.postScriptName)]")
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                  if f.isMonospaced {
-                    Label("Monospaced", systemImage: "text.alignleft")
-                      .labelStyle(.iconOnly)
-                      .help("等幅")
-                  }
-                  Spacer()
-                  Button {
-                    pinned.remove(f)
-                  } label: {
-                    Image(systemName: "pin.slash")
-                  }
-                  .buttonStyle(.borderless)
-                }
-                Text(sampleText)
-                  .font(.custom(f.postScriptName, size: CGFloat(size)))
-                  .lineLimit(5)
-                  .fixedSize(horizontal: false, vertical: true)
-                  .padding(10)
-                  .background(Color.secondary.opacity(0.12))
-                  .clipShape(RoundedRectangle(cornerRadius: 8))
-              }
-              Divider()
-            }
-          }
-          .padding()
-        }
-      }
-    }
-    .padding()
-  }
 }
 
 // MARK: - Item Views
