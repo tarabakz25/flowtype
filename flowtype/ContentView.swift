@@ -394,63 +394,77 @@ struct FontListRow: View {
   let isEvenRow: Bool
 
   private var isPinned: Bool { pinned.contains(font) }
+  
+  // テキストサイズに応じて最大幅を計算（最小360、サイズが大きいほど広く）
+  private var dynamicMaxWidth: CGFloat {
+    let baseWidth: CGFloat = 360
+    let sizeFactor = CGFloat(size) / 24.0 // 24ptを基準とする
+    // サイズが大きいほど多くの文字を表示できるように幅を拡張
+    // ただし上限を設けて右側のパネルに被らないようにする
+    return min(baseWidth * sizeFactor, 800)
+  }
 
   var body: some View {
-    HStack(spacing: 24) {
-      HStack(alignment: .center, spacing: 12) {
-        Circle()
-          .fill(Color.accentColor.opacity(font.isMonospaced ? 1 : 0.5))
-          .frame(width: 6, height: 6)
-          .padding(.leading, 4)
+    GeometryReader { geometry in
+      HStack(spacing: 24) {
+        HStack(alignment: .center, spacing: 12) {
+          Circle()
+            .fill(Color.accentColor.opacity(font.isMonospaced ? 1 : 0.5))
+            .frame(width: 6, height: 6)
+            .padding(.leading, 4)
 
-        VStack(alignment: .leading, spacing: 2) {
-          Text(font.displayName)
-            .font(.caption)
-            .lineLimit(1)
-          Text(font.familyName)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
+          VStack(alignment: .leading, spacing: 2) {
+            Text(font.displayName)
+              .font(.caption)
+              .lineLimit(1)
+            Text(font.familyName)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(1)
+          }
         }
+        .frame(width: 200, alignment: .leading)
+
+        Spacer()
+
+        Text(sampleText)
+          .font(.custom(font.postScriptName, size: CGFloat(size)))
+          .lineLimit(1)
+          .minimumScaleFactor(0.5)
+          .frame(maxWidth: min(dynamicMaxWidth, geometry.size.width - 400), alignment: .center)
+          .padding(.horizontal, 12)
+
+        Spacer(minLength: 12)
+
+        HStack(spacing: 12) {
+          Button {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(font.postScriptName, forType: .string)
+          } label: {
+            Image(systemName: "doc.on.doc")
+          }
+          .buttonStyle(.borderless)
+          .help("PostScript名をコピー")
+
+          Button {
+            if isPinned { pinned.remove(font) } else { pinned.insert(font) }
+          } label: {
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+          }
+          .buttonStyle(.borderless)
+          .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
+        }
+        .frame(width: 80, alignment: .trailing)
       }
-
-      Spacer()
-
-      Text(sampleText)
-        .font(.custom(font.postScriptName, size: CGFloat(size)))
-        .lineLimit(1)
-        .minimumScaleFactor(0.5)
-        .frame(maxWidth: 360, alignment: .center)
-        .padding(.horizontal, 12)
-
-      Spacer(minLength: 12)
-
-      HStack(spacing: 12) {
-        Button {
-          NSPasteboard.general.clearContents()
-          NSPasteboard.general.setString(font.postScriptName, forType: .string)
-        } label: {
-          Image(systemName: "doc.on.doc")
-        }
-        .buttonStyle(.borderless)
-        .help("PostScript名をコピー")
-
-        Button {
-          if isPinned { pinned.remove(font) } else { pinned.insert(font) }
-        } label: {
-          Image(systemName: isPinned ? "pin.fill" : "pin")
-        }
-        .buttonStyle(.borderless)
-        .help(isPinned ? "ピン留めを外す" : "比較にピン留め")
+      .padding(.horizontal, 20)
+      .padding(.vertical, 14)
+      .background(isEvenRow ? Color.primary.opacity(0.04) : Color.clear)
+      .overlay(alignment: .bottom) {
+        Divider()
+          .padding(.leading, 20)
       }
     }
-    .padding(.horizontal, 20)
-    .padding(.vertical, 14)
-    .background(isEvenRow ? Color.primary.opacity(0.04) : Color.clear)
-    .overlay(alignment: .bottom) {
-      Divider()
-        .padding(.leading, 20)
-    }
+    .frame(height: 60)
   }
 }
 
